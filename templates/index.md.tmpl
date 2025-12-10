@@ -1,0 +1,58 @@
+---
+page_title: "Provider: AppTrust"
+description: |-
+  The JFrog AppTrust provider is used to interact with the JFrog AppTrust API features.
+---
+
+# AppTrust Provider
+
+{{ .Description | trimspace }}
+
+## Authentication
+
+The AppTrust provider supports several ways to authenticate:
+
+### Access Token (Recommended)
+
+The provider requires an Access Token to interact with the AppTrust API.
+
+```terraform
+provider "apptrust" {
+  url          = "https://myinstance.jfrog.io/artifactory"
+  access_token = "my-access-token"
+}
+```
+
+You can also use environment variables:
+
+```bash
+export JFROG_URL="https://myinstance.jfrog.io/artifactory"
+export JFROG_ACCESS_TOKEN="my-access-token"
+```
+
+### API Key (Deprecated)
+
+API keys are deprecated but still supported for backward compatibility.
+
+```terraform
+provider "apptrust" {
+  url     = "https://myinstance.jfrog.io/artifactory"
+  api_key = "my-api-key"
+}
+```
+
+## Requirements
+
+- Artifactory 7.125.0 or later
+- Xray 3.130.5 or later
+- Enterprise Plus license with AppTrust entitlements
+- Terraform 1.0 or later
+
+## Schema
+
+{{ .SchemaMarkdown | trimspace }}
+
+## AppTrust API Endpoints
+
+This provider uses the JFrog Artifactory REST API to interact with AppTrust features. Specific endpoints will be documented as resources and data sources are implemented.
+

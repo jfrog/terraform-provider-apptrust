@@ -23,6 +23,7 @@ import (
 // Ensure the implementation satisfies the provider.Provider interface.
 var _ provider.Provider = &AppTrustProvider{}
 
+// AppTrustProvider is the provider implementation for AppTrust.
 type AppTrustProvider struct{}
 
 // AppTrustProviderModel describes the provider data model.
@@ -32,13 +33,13 @@ type AppTrustProviderModel struct {
 	ApiKey      types.String `tfsdk:"api_key"`
 }
 
-// Metadata satisfies the provider.Provider interface for AppTrustProvider
+// Metadata returns the provider type name and version.
 func (p *AppTrustProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "apptrust"
 	resp.Version = Version
 }
 
-// Schema satisfies the provider.Provider interface for AppTrustProvider.
+// Schema defines the provider configuration schema.
 func (p *AppTrustProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -67,9 +68,10 @@ func (p *AppTrustProvider) Schema(ctx context.Context, req provider.SchemaReques
 	}
 }
 
-// Configure satisfies the provider.Provider interface for AppTrustProvider.
+// Configure initializes the provider with configuration data and validates requirements.
 func (p *AppTrustProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	// Check environment variables, first available OS variable will be assigned to the var
+	// Check environment variables for configuration
+	// First available environment variable will be used
 	url := util.CheckEnvVars([]string{"JFROG_URL", "ARTIFACTORY_URL"}, "")
 	accessToken := util.CheckEnvVars([]string{"JFROG_ACCESS_TOKEN", "ARTIFACTORY_ACCESS_TOKEN"}, "")
 
@@ -104,8 +106,7 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Check configuration data, which should take precedence over
-	// environment variable data, if found.
+	// Configuration block values take precedence over environment variables
 	if config.AccessToken.ValueString() != "" {
 		accessToken = config.AccessToken.ValueString()
 	}
@@ -130,6 +131,7 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
+	// Handle TLS verification bypass (for testing/development only)
 	bypassJFrogTLSVerification := os.Getenv("JFROG_BYPASS_TLS_VERIFICATION")
 	if strings.ToLower(bypassJFrogTLSVerification) == "true" {
 		tlsConfig := &tls.Config{
@@ -207,6 +209,7 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 	// Note: AppTrust license validation is handled by the API itself.
 	// If AppTrust is not licensed or available, API calls will return appropriate errors.
 
+	// Send usage telemetry (async)
 	featureUsage := fmt.Sprintf("Terraform/%s", req.TerraformVersion)
 	go util.SendUsage(ctx, restyClient.R(), productId, featureUsage)
 
@@ -221,24 +224,26 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 	resp.ResourceData = meta
 }
 
-// Resources satisfies the provider.Provider interface for AppTrustProvider.
+// Resources returns the list of resources supported by this provider.
 func (p *AppTrustProvider) Resources(ctx context.Context) []func() resource.Resource {
-	resources := []func() resource.Resource{
+	return []func() resource.Resource{
 		// Resources will be added here as they are implemented
+		// Example:
+		// func() resource.Resource { return &applicationResource{} },
 	}
-
-	return resources
 }
 
-// DataSources satisfies the provider.Provider interface for AppTrustProvider.
+// DataSources returns the list of data sources supported by this provider.
 func (p *AppTrustProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	dataSources := []func() datasource.DataSource{
+	return []func() datasource.DataSource{
 		// Data sources will be added here as they are implemented
+		// Example:
+		// func() datasource.DataSource { return &applicationDataSource{} },
 	}
-
-	return dataSources
 }
 
+// Framework returns a function that creates a new AppTrustProvider instance.
+// This is used by the main package to initialize the provider.
 func Framework() func() provider.Provider {
 	return func() provider.Provider {
 		return &AppTrustProvider{}
