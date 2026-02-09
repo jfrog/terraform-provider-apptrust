@@ -20,7 +20,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/jfrog/terraform-provider-apptrust/pkg/apptrust/provider"
+	provider "github.com/jfrog/terraform-provider-apptrust/pkg/apptrust/provider"
 )
 
 // Run the docs generation tool, check its repository for more information on how it works and how docs
