@@ -37,7 +37,54 @@ Detailed documentation of resources and attributes will be available on [Terrafo
 
 ## Resources and Data Sources
 
-Resources and data sources will be documented here as they are implemented.
+Detailed documentation is available on the [Terraform Registry](https://registry.terraform.io/providers/jfrog/apptrust/latest/docs). Summary:
+
+### Resources
+
+| Resource | Description |
+|----------|-------------|
+| **apptrust_application** | Manages AppTrust applications. Create, update, and delete applications with labels, owners, maturity level, and criticality. |
+
+### Data Sources
+
+| Data Source | Description |
+|-------------|-------------|
+| **apptrust_application** | Reads a single application by key. |
+| **apptrust_applications** | Reads multiple applications with optional filters, pagination, and sorting. |
+
+## Local Development
+
+For local development, you can use `dev_overrides` to test the provider without publishing it to the registry.
+
+### Quick Setup
+
+1. **Set up dev_overrides** (one-time setup):
+   ```bash
+   ./setup-dev-overrides.sh
+   ```
+   Or manually create/update `~/.terraformrc`:
+   ```hcl
+   provider_installation {
+     dev_overrides {
+       "jfrog/apptrust" = "/absolute/path/to/terraform-provider-apptrust"
+     }
+     direct {}
+   }
+   ```
+
+2. **Build and install the provider**:
+   ```bash
+   make install
+   ```
+
+3. **Use Terraform commands directly** (no need for `terraform init`):
+   ```bash
+   terraform validate
+   terraform plan
+   terraform apply
+   ```
+
+See [CONTRIBUTIONS.md](CONTRIBUTIONS.md) for contribution guidelines and [CONTRIBUTING.md](CONTRIBUTING.md) for CLA and pull request process.
 
 ## Requirements
 
@@ -56,7 +103,11 @@ The provider supports the following authentication methods:
 
 ## API Endpoints
 
-This provider uses the JFrog Artifactory REST API to interact with AppTrust features. Specific endpoints will be documented as resources and data sources are implemented.
+This provider uses the JFrog Artifactory REST API to interact with AppTrust features (`/apptrust/api/v1/applications`) to manage applications as a system of record for software assets throughout their lifecycle.
+
+## Contributors
+
+See the [contribution guide](CONTRIBUTIONS.md).
 
 ## Versioning
 
@@ -73,4 +124,3 @@ Copyright (c) 2025 JFrog.
 Apache 2.0 licensed, see [LICENSE][LICENSE] file.
 
 [LICENSE]: ./LICENSE
-
