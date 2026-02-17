@@ -132,6 +132,7 @@ func (d *ApplicationDataSource) Read(ctx context.Context, req datasource.ReadReq
 
 	var result ApplicationAPIModel
 	response, err := d.ProviderData.Client.R().
+		SetContext(ctx).
 		SetPathParam("application_key", data.ApplicationKey.ValueString()).
 		SetResult(&result).
 		Get(applicationEndpoint + "/{application_key}")

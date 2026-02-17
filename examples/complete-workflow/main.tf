@@ -75,7 +75,7 @@ data "apptrust_application" "backend_info" {
   application_key = apptrust_application.backend.application_key
 }
 
-# Step 3: Query all applications in the project
+# Step 3: Query all applications in the project (API defaults: limit 100, offset 0, order_by "created")
 data "apptrust_applications" "all_web_apps" {
   project_key = "web-project"
 }

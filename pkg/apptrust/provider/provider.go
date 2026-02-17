@@ -250,6 +250,9 @@ func (p *AppTrustProvider) Resources(ctx context.Context) []func() resource.Reso
 	return []func() resource.Resource{
 		apptrust_resource.NewApplicationResource,
 		apptrust_resource.NewApplicationVersionResource,
+		apptrust_resource.NewApplicationVersionPromotionResource,
+		apptrust_resource.NewApplicationVersionReleaseResource,
+		apptrust_resource.NewApplicationVersionRollbackResource,
 		apptrust_resource.NewBoundPackageResource,
 	}
 }
@@ -260,6 +263,8 @@ func (p *AppTrustProvider) DataSources(ctx context.Context) []func() datasource.
 		apptrust_datasource.NewApplicationDataSource,
 		apptrust_datasource.NewApplicationsDataSource,
 		apptrust_datasource.NewApplicationVersionsDataSource,
+		apptrust_datasource.NewApplicationVersionStatusDataSource,
+		apptrust_datasource.NewApplicationVersionPromotionsDataSource,
 		apptrust_datasource.NewApplicationPackageBindingsDataSource,
 		apptrust_datasource.NewBoundPackageVersionsDataSource,
 	}

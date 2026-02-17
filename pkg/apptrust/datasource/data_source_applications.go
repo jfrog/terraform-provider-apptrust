@@ -302,6 +302,7 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 	// API returns an array of SingleApplicationResponse directly, not wrapped in an object
 	var apiApplications []SingleApplicationResponse
 	response, err := d.ProviderData.Client.R().
+		SetContext(ctx).
 		SetQueryParamsFromValues(queryValues).
 		SetResult(&apiApplications).
 		Get(applicationsEndpoint)
