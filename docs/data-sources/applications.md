@@ -22,34 +22,19 @@ Returns a list of AppTrust applications, including the latest version and the to
 ## Example Usage
 
 ```terraform
-# List applications with filters (GET /v1/applications).
-# Use maturity (not maturity_level) for the filter. Labels in "key:value" format.
-data "apptrust_applications" "filtered" {
+data "apptrust_applications" "example" {
   project_key = "my-project"
-  maturity    = "production"
-  criticality = "high"
-
-  labels = [
-    "environment:production",
-    "region:us-east"
-  ]
-
-  owners = [
-    "admin",
-    "devops-team"
-  ]
-
-  order_by  = "name"   # or "created" (API default)
-  order_asc = true
-  limit     = 10
-  offset    = 0
+  name        = "my-web-app"
+  limit       = 10
+  offset      = 0
 }
 
-output "filtered_applications" {
-  value = {
-    total        = data.apptrust_applications.filtered.total
-    applications = data.apptrust_applications.filtered.applications
-  }
+output "applications" {
+  value = data.apptrust_applications.example.applications
+}
+
+output "total" {
+  value = data.apptrust_applications.example.total
 }
 ```
 
