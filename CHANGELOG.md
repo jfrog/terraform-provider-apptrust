@@ -1,4 +1,4 @@
-## 1.0.0 (Feb 23, 2025). Tested on Artifactory 7.125.0 with Terraform 1.0+ and OpenTofu 1.0+
+## 1.0.0 (Feb 23, 2025).
 
 This release includes all resources and datasources for the AppTrust provider.
 
