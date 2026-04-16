@@ -52,16 +52,22 @@ type ApplicationDataSourceModel struct {
 	GroupOwners     types.List   `tfsdk:"group_owners"`
 }
 
+// LabelAPIModel matches the API wire format for labels: [{"key":"env","value":"prod"}, ...]
+type LabelAPIModel struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type ApplicationAPIModel struct {
-	ApplicationKey  string            `json:"application_key"`
-	ApplicationName string            `json:"application_name"`
-	ProjectKey      string            `json:"project_key"`
-	Description     string            `json:"description,omitempty"`
-	MaturityLevel   string            `json:"maturity_level,omitempty"` // API uses "maturity_level" consistently for all operations (GET/POST/PATCH)
-	Criticality     string            `json:"criticality,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
-	UserOwners      []string          `json:"user_owners,omitempty"`
-	GroupOwners     []string          `json:"group_owners,omitempty"`
+	ApplicationKey  string          `json:"application_key"`
+	ApplicationName string          `json:"application_name"`
+	ProjectKey      string          `json:"project_key"`
+	Description     string          `json:"description,omitempty"`
+	MaturityLevel   string          `json:"maturity_level,omitempty"` // API uses "maturity_level" consistently for all operations (GET/POST/PATCH)
+	Criticality     string          `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel `json:"labels,omitempty"`
+	UserOwners      []string        `json:"user_owners,omitempty"`
+	GroupOwners     []string        `json:"group_owners,omitempty"`
 }
 
 func (d *ApplicationDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -202,8 +208,8 @@ func (m *ApplicationDataSourceModel) FromAPIModel(ctx context.Context, api Appli
 
 	if len(api.Labels) > 0 {
 		labels := make(map[string]types.String)
-		for k, v := range api.Labels {
-			labels[k] = types.StringValue(v)
+		for _, label := range api.Labels {
+			labels[label.Key] = types.StringValue(label.Value)
 		}
 		labelsMap, d := types.MapValueFrom(ctx, types.StringType, labels)
 		diags.Append(d...)

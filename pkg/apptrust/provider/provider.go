@@ -262,6 +262,7 @@ func (p *AppTrustProvider) DataSources(ctx context.Context) []func() datasource.
 	return []func() datasource.DataSource{
 		apptrust_datasource.NewApplicationDataSource,
 		apptrust_datasource.NewApplicationsDataSource,
+		apptrust_datasource.NewApplicationVersionDataSource,
 		apptrust_datasource.NewApplicationVersionsDataSource,
 		apptrust_datasource.NewApplicationVersionStatusDataSource,
 		apptrust_datasource.NewApplicationVersionPromotionsDataSource,

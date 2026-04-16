@@ -71,26 +71,33 @@ type ApplicationResourceModel struct {
 	GroupOwners     types.List   `tfsdk:"group_owners"`
 }
 
+// LabelAPIModel matches the API wire format: [{"key":"env","value":"prod"}, ...]
+// The API returns labels as an array of key/value objects (not a map).
+type LabelAPIModel struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type ApplicationAPIModel struct {
-	ApplicationKey  string            `json:"application_key"`
-	ApplicationName string            `json:"application_name"`
-	ProjectKey      string            `json:"project_key"`
-	Description     string            `json:"description,omitempty"`
-	MaturityLevel   string            `json:"maturity_level,omitempty"`
-	Criticality     string            `json:"criticality,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
-	UserOwners      []string          `json:"user_owners,omitempty"`
-	GroupOwners     []string          `json:"group_owners,omitempty"`
+	ApplicationKey  string           `json:"application_key"`
+	ApplicationName string           `json:"application_name"`
+	ProjectKey      string           `json:"project_key"`
+	Description     string           `json:"description,omitempty"`
+	MaturityLevel   string           `json:"maturity_level,omitempty"`
+	Criticality     string           `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel  `json:"labels,omitempty"`
+	UserOwners      []string         `json:"user_owners,omitempty"`
+	GroupOwners     []string         `json:"group_owners,omitempty"`
 }
 
 type UpdateApplicationAPIModel struct {
-	ApplicationName *string           `json:"application_name,omitempty"`
-	Description     *string           `json:"description,omitempty"`
-	MaturityLevel   *string           `json:"maturity_level,omitempty"`
-	Criticality     *string           `json:"criticality,omitempty"`
-	Labels          map[string]string `json:"labels"`       // No omitempty - empty map must be sent to clear
-	UserOwners      []string          `json:"user_owners"`  // No omitempty - empty array must be sent to clear
-	GroupOwners     []string          `json:"group_owners"` // No omitempty - empty array must be sent to clear
+	ApplicationName *string          `json:"application_name,omitempty"`
+	Description     *string          `json:"description,omitempty"`
+	MaturityLevel   *string          `json:"maturity_level,omitempty"`
+	Criticality     *string          `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel  `json:"labels"`       // No omitempty - empty array must be sent to clear
+	UserOwners      []string         `json:"user_owners"`  // No omitempty - empty array must be sent to clear
+	GroupOwners     []string         `json:"group_owners"` // No omitempty - empty array must be sent to clear
 }
 
 var (
@@ -451,7 +458,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		apiModel.Description = &emptyStr
 	}
 	if plan.Labels.IsNull() && !state.Labels.IsNull() {
-		apiModel.Labels = make(map[string]string)
+		apiModel.Labels = []LabelAPIModel{}
 	}
 	if plan.UserOwners.IsNull() && !state.UserOwners.IsNull() {
 		apiModel.UserOwners = []string{}
@@ -461,11 +468,9 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	var result ApplicationAPIModel
-	// NOTE: The provider sends "project" query parameter for context/authorization purposes.
 	response, err := r.ProviderData.Client.R().
 		SetContext(ctx).
 		SetPathParam("application_key", plan.ApplicationKey.ValueString()).
-		SetQueryParam("project", plan.ProjectKey.ValueString()).
 		SetBody(apiModel).
 		SetResult(&result).
 		Patch(ApplicationEndpoint)
@@ -607,10 +612,13 @@ func (m *ApplicationResourceModel) toAPIModel(ctx context.Context) (ApplicationA
 	}
 
 	if !m.Labels.IsNull() {
-		labels := make(map[string]string)
-		diags.Append(m.Labels.ElementsAs(ctx, &labels, false)...)
+		labelsMap := make(map[string]string)
+		diags.Append(m.Labels.ElementsAs(ctx, &labelsMap, false)...)
 		if !diags.HasError() {
-			apiModel.Labels = labels
+			apiModel.Labels = make([]LabelAPIModel, 0, len(labelsMap))
+			for k, v := range labelsMap {
+				apiModel.Labels = append(apiModel.Labels, LabelAPIModel{Key: k, Value: v})
+			}
 		}
 	}
 
@@ -660,10 +668,13 @@ func (m *ApplicationResourceModel) toAPIModelForUpdate(ctx context.Context) (Upd
 	}
 
 	if !m.Labels.IsNull() {
-		labels := make(map[string]string)
-		diags.Append(m.Labels.ElementsAs(ctx, &labels, false)...)
+		labelsMap := make(map[string]string)
+		diags.Append(m.Labels.ElementsAs(ctx, &labelsMap, false)...)
 		if !diags.HasError() {
-			apiModel.Labels = labels
+			apiModel.Labels = make([]LabelAPIModel, 0, len(labelsMap))
+			for k, v := range labelsMap {
+				apiModel.Labels = append(apiModel.Labels, LabelAPIModel{Key: k, Value: v})
+			}
 		}
 	}
 
@@ -715,8 +726,8 @@ func (m *ApplicationResourceModel) fromAPIModel(ctx context.Context, api Applica
 
 	if len(api.Labels) > 0 {
 		labels := make(map[string]types.String)
-		for k, v := range api.Labels {
-			labels[k] = types.StringValue(v)
+		for _, label := range api.Labels {
+			labels[label.Key] = types.StringValue(label.Value)
 		}
 		labelsMap, d := types.MapValueFrom(ctx, types.StringType, labels)
 		diags.Append(d...)

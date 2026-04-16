@@ -58,13 +58,20 @@ type ApplicationVersionResourceModel struct {
 	ApplicationKey  types.String `tfsdk:"application_key"`
 	Version         types.String `tfsdk:"version"`
 	Tag             types.String `tfsdk:"tag"`
+	Draft           types.Bool   `tfsdk:"draft"`
 	SourceArtifacts types.List   `tfsdk:"source_artifacts"`
 	SourceBuilds    types.List   `tfsdk:"source_builds"`
-	SourceVersions  types.List   `tfsdk:"source_versions"` // CreateAppVersionVersionsSources: application_key, version
+	SourceVersions  types.List   `tfsdk:"source_versions"`
+	SourceReleaseBundles         types.List `tfsdk:"source_release_bundles"`
+	SourcePackages               types.List `tfsdk:"source_packages"`
+	SourceAql                    types.String `tfsdk:"source_aql"`
+	SkipDockerManifestResolution types.Bool   `tfsdk:"skip_docker_manifest_resolution"`
+	FilterIncluded               types.List `tfsdk:"filter_included"`
+	FilterExcluded               types.List `tfsdk:"filter_excluded"`
 	// UpdateAppVersionRequest: optional properties and delete_properties
 	Properties       types.Map  `tfsdk:"properties"`
 	DeleteProperties types.List `tfsdk:"delete_properties"`
-	// Computed from API (release_status: pre_release | released | trusted_release)
+	// Computed from API
 	ReleaseStatus types.String `tfsdk:"release_status"`
 	CurrentStage  types.String `tfsdk:"current_stage"`
 }
@@ -83,9 +90,11 @@ type applicationVersionSourceBuild struct {
 }
 
 type createApplicationVersionBody struct {
-	Version string                          `json:"version"`
-	Sources createApplicationVersionSources `json:"sources"`
-	Tag     string                          `json:"tag,omitempty"`
+	Version string                           `json:"version"`
+	Sources createApplicationVersionSources  `json:"sources"`
+	Tag     string                           `json:"tag,omitempty"`
+	Draft   bool                             `json:"draft,omitempty"`
+	Filters *createApplicationVersionFilters `json:"filters,omitempty"`
 }
 
 type applicationVersionSourceVersion struct {
@@ -93,10 +102,40 @@ type applicationVersionSourceVersion struct {
 	Version        string `json:"version"`
 }
 
+type applicationVersionSourceReleaseBundle struct {
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	ProjectKey    string `json:"project_key,omitempty"`
+	RepositoryKey string `json:"repository_key,omitempty"`
+}
+
+type applicationVersionSourcePackage struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Version string `json:"version,omitempty"`
+}
+
+type applicationVersionFilterItem struct {
+	Path           string `json:"path,omitempty"`
+	Sha256         string `json:"sha256,omitempty"`
+	PackageName    string `json:"package_name,omitempty"`
+	PackageType    string `json:"package_type,omitempty"`
+	PackageVersion string `json:"package_version,omitempty"`
+}
+
+type createApplicationVersionFilters struct {
+	Included []applicationVersionFilterItem `json:"included,omitempty"`
+	Excluded []applicationVersionFilterItem `json:"excluded,omitempty"`
+}
+
 type createApplicationVersionSources struct {
-	Artifacts []applicationVersionSourceArtifact `json:"artifacts,omitempty"`
-	Builds    []applicationVersionSourceBuild    `json:"builds,omitempty"`
-	Versions  []applicationVersionSourceVersion  `json:"versions,omitempty"`
+	Artifacts                    []applicationVersionSourceArtifact    `json:"artifacts,omitempty"`
+	Builds                       []applicationVersionSourceBuild       `json:"builds,omitempty"`
+	Versions                     []applicationVersionSourceVersion     `json:"versions,omitempty"`
+	ReleaseBundles               []applicationVersionSourceReleaseBundle `json:"release_bundles,omitempty"`
+	Packages                     []applicationVersionSourcePackage     `json:"packages,omitempty"`
+	Aql                          string                                `json:"aql,omitempty"`
+	SkipDockerManifestResolution bool                                  `json:"skip_docker_manifest_resolution,omitempty"`
 }
 
 type applicationVersionListItem struct {
@@ -148,6 +187,10 @@ func (r *ApplicationVersionResource) Schema(ctx context.Context, req resource.Sc
 			},
 			"tag": schema.StringAttribute{
 				Description: "Tag associated with the version (e.g. branch name). Max 128 characters.",
+				Optional:    true,
+			},
+			"draft": schema.BoolAttribute{
+				Description: "Whether to create the version as a draft.",
 				Optional:    true,
 			},
 			"source_artifacts": schema.ListNestedAttribute{
@@ -210,6 +253,114 @@ func (r *ApplicationVersionResource) Schema(ctx context.Context, req resource.Sc
 					},
 				},
 			},
+			"source_release_bundles": schema.ListNestedAttribute{
+				Description: "Release bundles to include as sources.",
+				Optional:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Release bundle name.",
+							Required:    true,
+						},
+						"version": schema.StringAttribute{
+							Description: "Release bundle version.",
+							Required:    true,
+						},
+						"project_key": schema.StringAttribute{
+							Description: "Project key for the release bundle.",
+							Optional:    true,
+						},
+						"repository_key": schema.StringAttribute{
+							Description: "Repository key for the release bundle.",
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"source_packages": schema.ListNestedAttribute{
+				Description: "Packages to include as sources.",
+				Optional:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Package name.",
+							Required:    true,
+						},
+						"type": schema.StringAttribute{
+							Description: "Package type (e.g. docker, npm, maven).",
+							Required:    true,
+						},
+						"version": schema.StringAttribute{
+							Description: "Package version.",
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"source_aql": schema.StringAttribute{
+				Description: "AQL query to resolve source artifacts.",
+				Optional:    true,
+			},
+			"skip_docker_manifest_resolution": schema.BoolAttribute{
+				Description: "Skip Docker manifest resolution for source artifacts.",
+				Optional:    true,
+			},
+			"filter_included": schema.ListNestedAttribute{
+				Description: "Artifact filter — only include matching items.",
+				Optional:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"path": schema.StringAttribute{
+							Description: "Artifact path.",
+							Optional:    true,
+						},
+						"sha256": schema.StringAttribute{
+							Description: "Artifact SHA256 checksum.",
+							Optional:    true,
+						},
+						"package_name": schema.StringAttribute{
+							Description: "Package name.",
+							Optional:    true,
+						},
+						"package_type": schema.StringAttribute{
+							Description: "Package type.",
+							Optional:    true,
+						},
+						"package_version": schema.StringAttribute{
+							Description: "Package version.",
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"filter_excluded": schema.ListNestedAttribute{
+				Description: "Artifact filter — exclude matching items.",
+				Optional:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"path": schema.StringAttribute{
+							Description: "Artifact path.",
+							Optional:    true,
+						},
+						"sha256": schema.StringAttribute{
+							Description: "Artifact SHA256 checksum.",
+							Optional:    true,
+						},
+						"package_name": schema.StringAttribute{
+							Description: "Package name.",
+							Optional:    true,
+						},
+						"package_type": schema.StringAttribute{
+							Description: "Package type.",
+							Optional:    true,
+						},
+						"package_version": schema.StringAttribute{
+							Description: "Package version.",
+							Optional:    true,
+						},
+					},
+				},
+			},
 			"properties": schema.MapAttribute{
 				Description: "Version properties (key -> list of values). UpdateAppVersionRequest.",
 				ElementType: types.ListType{ElemType: types.StringType},
@@ -223,10 +374,16 @@ func (r *ApplicationVersionResource) Schema(ctx context.Context, req resource.Sc
 			"release_status": schema.StringAttribute{
 				Description: "Release status: pre_release, released, trusted_release. Computed from API.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"current_stage": schema.StringAttribute{
 				Description: "Current lifecycle stage. Computed from API.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -317,18 +474,114 @@ func (r *ApplicationVersionResource) Create(ctx context.Context, req resource.Cr
 		}
 		hasAnySource = hasAnySource || len(sources.Versions) > 0
 	}
+	if !plan.SourceReleaseBundles.IsNull() && !plan.SourceReleaseBundles.IsUnknown() {
+		var list []struct {
+			Name          string       `tfsdk:"name"`
+			Version       string       `tfsdk:"version"`
+			ProjectKey    types.String `tfsdk:"project_key"`
+			RepositoryKey types.String `tfsdk:"repository_key"`
+		}
+		resp.Diagnostics.Append(plan.SourceReleaseBundles.ElementsAs(ctx, &list, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, e := range list {
+			sources.ReleaseBundles = append(sources.ReleaseBundles, applicationVersionSourceReleaseBundle{
+				Name:          e.Name,
+				Version:       e.Version,
+				ProjectKey:    e.ProjectKey.ValueString(),
+				RepositoryKey: e.RepositoryKey.ValueString(),
+			})
+		}
+		hasAnySource = hasAnySource || len(sources.ReleaseBundles) > 0
+	}
+	if !plan.SourcePackages.IsNull() && !plan.SourcePackages.IsUnknown() {
+		var list []struct {
+			Name    string       `tfsdk:"name"`
+			Type    string       `tfsdk:"type"`
+			Version types.String `tfsdk:"version"`
+		}
+		resp.Diagnostics.Append(plan.SourcePackages.ElementsAs(ctx, &list, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, e := range list {
+			sources.Packages = append(sources.Packages, applicationVersionSourcePackage{
+				Name:    e.Name,
+				Type:    e.Type,
+				Version: e.Version.ValueString(),
+			})
+		}
+		hasAnySource = hasAnySource || len(sources.Packages) > 0
+	}
+	if !plan.SourceAql.IsNull() && !plan.SourceAql.IsUnknown() && plan.SourceAql.ValueString() != "" {
+		sources.Aql = plan.SourceAql.ValueString()
+		hasAnySource = true
+	}
+	if !plan.SkipDockerManifestResolution.IsNull() && !plan.SkipDockerManifestResolution.IsUnknown() {
+		sources.SkipDockerManifestResolution = plan.SkipDockerManifestResolution.ValueBool()
+	}
 	if !hasAnySource {
 		resp.Diagnostics.AddError(
 			"At least one source required",
-			"Create application version requires at least one of source_artifacts, source_builds, or source_versions.",
+			"Create application version requires at least one of source_artifacts, source_builds, source_versions, source_release_bundles, source_packages, or source_aql.",
 		)
 		return
+	}
+
+	// Build optional filters
+	var filters *createApplicationVersionFilters
+	filterItemsFromPlan := func(list types.List) ([]applicationVersionFilterItem, bool) {
+		if list.IsNull() || list.IsUnknown() {
+			return nil, true
+		}
+		var items []struct {
+			Path           types.String `tfsdk:"path"`
+			Sha256         types.String `tfsdk:"sha256"`
+			PackageName    types.String `tfsdk:"package_name"`
+			PackageType    types.String `tfsdk:"package_type"`
+			PackageVersion types.String `tfsdk:"package_version"`
+		}
+		if diags := list.ElementsAs(ctx, &items, false); diags.HasError() {
+			return nil, false
+		}
+		result := make([]applicationVersionFilterItem, 0, len(items))
+		for _, e := range items {
+			result = append(result, applicationVersionFilterItem{
+				Path:           e.Path.ValueString(),
+				Sha256:         e.Sha256.ValueString(),
+				PackageName:    e.PackageName.ValueString(),
+				PackageType:    e.PackageType.ValueString(),
+				PackageVersion: e.PackageVersion.ValueString(),
+			})
+		}
+		return result, true
+	}
+
+	if !plan.FilterIncluded.IsNull() || !plan.FilterExcluded.IsNull() {
+		filters = &createApplicationVersionFilters{}
+		included, ok := filterItemsFromPlan(plan.FilterIncluded)
+		if !ok {
+			resp.Diagnostics.AddError("Error reading filter_included", "Failed to parse filter_included")
+			return
+		}
+		filters.Included = included
+		excluded, ok := filterItemsFromPlan(plan.FilterExcluded)
+		if !ok {
+			resp.Diagnostics.AddError("Error reading filter_excluded", "Failed to parse filter_excluded")
+			return
+		}
+		filters.Excluded = excluded
 	}
 
 	body := createApplicationVersionBody{
 		Version: plan.Version.ValueString(),
 		Sources: sources,
 		Tag:     plan.Tag.ValueString(),
+		Filters: filters,
+	}
+	if !plan.Draft.IsNull() && !plan.Draft.IsUnknown() {
+		body.Draft = plan.Draft.ValueBool()
 	}
 
 	httpResponse, err := r.ProviderData.Client.R().
@@ -351,6 +604,38 @@ func (r *ApplicationVersionResource) Create(ctx context.Context, req resource.Cr
 		errorDiags := apptrust.HandleAPIErrorWithType(httpResponse, "create", "application version")
 		resp.Diagnostics.Append(errorDiags...)
 		return
+	}
+
+	// After create (sync or async), fetch the version list to populate computed fields
+	// (release_status, current_stage). These are not returned in the create response body.
+	var listResp applicationVersionsListResponse
+	readResp, readErr := r.ProviderData.Client.R().
+		SetContext(ctx).
+		SetPathParam("application_key", plan.ApplicationKey.ValueString()).
+		SetQueryParam("limit", "1000").
+		SetResult(&listResp).
+		Get(ApplicationVersionsEndpoint)
+
+	if readErr == nil && readResp.StatusCode() == http.StatusOK {
+		for i := range listResp.Versions {
+			if listResp.Versions[i].Version == plan.Version.ValueString() {
+				plan.ReleaseStatus = types.StringValue(listResp.Versions[i].ReleaseStatus)
+				plan.CurrentStage = types.StringValue(listResp.Versions[i].CurrentStage)
+				// Preserve the tag from API response (may differ if plan tag was empty)
+				if listResp.Versions[i].Tag != "" {
+					plan.Tag = types.StringValue(listResp.Versions[i].Tag)
+				}
+				break
+			}
+		}
+	} else {
+		// If the read-back fails, use empty strings so state is valid (not unknown).
+		if plan.ReleaseStatus.IsUnknown() {
+			plan.ReleaseStatus = types.StringValue("")
+		}
+		if plan.CurrentStage.IsUnknown() {
+			plan.CurrentStage = types.StringValue("")
+		}
 	}
 
 	plan.ID = types.StringValue(plan.ApplicationKey.ValueString() + ":" + plan.Version.ValueString())
@@ -426,7 +711,11 @@ func (r *ApplicationVersionResource) Read(ctx context.Context, req resource.Read
 
 	state.ApplicationKey = types.StringValue(applicationKey)
 	state.Version = types.StringValue(version)
-	state.Tag = types.StringValue(found.Tag)
+	if found.Tag != "" {
+		state.Tag = types.StringValue(found.Tag)
+	} else {
+		state.Tag = types.StringNull()
+	}
 	state.ReleaseStatus = types.StringValue(found.ReleaseStatus)
 	state.CurrentStage = types.StringValue(found.CurrentStage)
 	state.ID = types.StringValue(applicationKey + ":" + version)

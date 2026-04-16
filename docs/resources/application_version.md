@@ -44,9 +44,16 @@ resource "apptrust_application_version" "example" {
 ### Optional
 
 - `delete_properties` (List of String) Property keys to remove on update.
+- `draft` (Boolean) Whether to create the version as a draft.
+- `filter_excluded` (Attributes List) Artifact filter — exclude matching items. (see [below for nested schema](#nestedatt--filter_excluded))
+- `filter_included` (Attributes List) Artifact filter — only include matching items. (see [below for nested schema](#nestedatt--filter_included))
 - `properties` (Map of List of String) Version properties (key -> list of values). UpdateAppVersionRequest.
+- `skip_docker_manifest_resolution` (Boolean) Skip Docker manifest resolution for source artifacts.
+- `source_aql` (String) AQL query to resolve source artifacts.
 - `source_artifacts` (Attributes List) Artifact paths to include in the version. At least one source (artifacts, builds, or source_versions) required on create. (see [below for nested schema](#nestedatt--source_artifacts))
 - `source_builds` (Attributes List) Builds to include in the version. At least one source (artifacts, builds, or source_versions) required on create. (see [below for nested schema](#nestedatt--source_builds))
+- `source_packages` (Attributes List) Packages to include as sources. (see [below for nested schema](#nestedatt--source_packages))
+- `source_release_bundles` (Attributes List) Release bundles to include as sources. (see [below for nested schema](#nestedatt--source_release_bundles))
 - `source_versions` (Attributes List) Other application versions to include as sources (CreateAppVersionVersionsSources). (see [below for nested schema](#nestedatt--source_versions))
 - `tag` (String) Tag associated with the version (e.g. branch name). Max 128 characters.
 
@@ -55,6 +62,30 @@ resource "apptrust_application_version" "example" {
 - `current_stage` (String) Current lifecycle stage. Computed from API.
 - `id` (String) Computed ID (application_key:version).
 - `release_status` (String) Release status: pre_release, released, trusted_release. Computed from API.
+
+<a id="nestedatt--filter_excluded"></a>
+### Nested Schema for `filter_excluded`
+
+Optional:
+
+- `package_name` (String) Package name.
+- `package_type` (String) Package type.
+- `package_version` (String) Package version.
+- `path` (String) Artifact path.
+- `sha256` (String) Artifact SHA256 checksum.
+
+
+<a id="nestedatt--filter_included"></a>
+### Nested Schema for `filter_included`
+
+Optional:
+
+- `package_name` (String) Package name.
+- `package_type` (String) Package type.
+- `package_version` (String) Package version.
+- `path` (String) Artifact path.
+- `sha256` (String) Artifact SHA256 checksum.
+
 
 <a id="nestedatt--source_artifacts"></a>
 ### Nested Schema for `source_artifacts`
@@ -81,6 +112,33 @@ Optional:
 - `include_dependencies` (Boolean) Include build dependencies.
 - `repository_key` (String) Build-info repository key.
 - `started` (String) Build timestamp (ISO 8601).
+
+
+<a id="nestedatt--source_packages"></a>
+### Nested Schema for `source_packages`
+
+Required:
+
+- `name` (String) Package name.
+- `type` (String) Package type (e.g. docker, npm, maven).
+
+Optional:
+
+- `version` (String) Package version.
+
+
+<a id="nestedatt--source_release_bundles"></a>
+### Nested Schema for `source_release_bundles`
+
+Required:
+
+- `name` (String) Release bundle name.
+- `version` (String) Release bundle version.
+
+Optional:
+
+- `project_key` (String) Project key for the release bundle.
+- `repository_key` (String) Repository key for the release bundle.
 
 
 <a id="nestedatt--source_versions"></a>

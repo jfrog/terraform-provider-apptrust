@@ -3,14 +3,14 @@
 page_title: "apptrust_applications Data Source - terraform-provider-apptrust"
 subcategory: "Applications"
 description: |-
-  Returns a list of AppTrust applications, including the latest version and the total number of versions. Supports filtering, pagination, and sorting.
+  Returns a list of AppTrust applications with their full details. Supports filtering, pagination, and sorting.
   API Notes
   The API endpoint GET /v1/applications supports filtering by project_key, name, criticality, maturity, label, and owner (each filter can be specified multiple times where applicable).The maturity query parameter is used for filtering (not maturity_level); the response uses maturity_level in application objects.Pagination is supported via limit (default 100) and offset (default 0).Ordering is via order_by (name or created; default created) and order_asc (default false).
 ---
 
 # apptrust_applications (Data Source)
 
-Returns a list of AppTrust applications, including the latest version and the total number of versions. Supports filtering, pagination, and sorting.
+Returns a list of AppTrust applications with their full details. Supports filtering, pagination, and sorting.
 
 ## API Notes
 
@@ -66,7 +66,10 @@ Read-Only:
 
 - `application_key` (String) The application key.
 - `application_name` (String) The application display name.
-- `application_version_latest` (String) The latest version of the application.
-- `application_version_tag` (String) The tag associated with the latest application version.
-- `application_versions_count` (Number) The total number of versions for this application.
+- `criticality` (String) A classification of how critical the application is for your business.
+- `description` (String) A free-text description of the application.
+- `group_owners` (List of String) List of user groups who own the application.
+- `labels` (Map of String) Key-value pairs that label the application.
+- `maturity_level` (String) The maturity level of the application.
 - `project_key` (String) The key of the project associated with the application.
+- `user_owners` (List of String) List of users who own the application.

@@ -53,13 +53,20 @@ func GetAccessToken(t *testing.T) string {
 }
 
 // Pre-created project keys for AppTrust application acceptance tests.
-// Projects aa, bb, cc, dd must exist in the test environment.
-const (
-	AppTrustProjectKey1 = "aa"
-	AppTrustProjectKey2 = "bb"
-	AppTrustProjectKey3 = "cc"
-	AppTrustProjectKey4 = "dd"
+// Override via APPTRUST_PROJECT_KEY_1/2/3/4 env vars; defaults to "testproj3038182".
+var (
+	AppTrustProjectKey1 = getEnvWithDefault("APPTRUST_PROJECT_KEY_1", "testproj3038182")
+	AppTrustProjectKey2 = getEnvWithDefault("APPTRUST_PROJECT_KEY_2", "testproj3038182")
+	AppTrustProjectKey3 = getEnvWithDefault("APPTRUST_PROJECT_KEY_3", "testproj3038182")
+	AppTrustProjectKey4 = getEnvWithDefault("APPTRUST_PROJECT_KEY_4", "testproj3038182")
 )
+
+func getEnvWithDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 func GetTestResty(t *testing.T) *resty.Client {
 	artifactoryUrl := GetArtifactoryUrl(t)
@@ -114,6 +121,36 @@ func GetTestRestyFromEnv() (*resty.Client, error) {
 func SkipIfNotAcc(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test. Set TF_ACC=1 to run.")
+	}
+}
+
+// TestArtifactRepo is the generic repository used to stage test artifacts.
+// The file at TestArtifactPath must exist — EnsureTestArtifact uploads it if absent.
+const (
+	TestArtifactRepo = "example-repo-local"
+	TestArtifactPath = "example-repo-local/acc-test-artifact.txt"
+)
+
+// EnsureTestArtifact uploads a small placeholder file to TestArtifactPath if it does
+// not already exist. Promotion tests require a version whose artifact resolved
+// successfully (status != FAILED); using a real artifact guarantees this.
+func EnsureTestArtifact(t *testing.T) {
+	t.Helper()
+	rc := GetTestResty(t)
+	artifactURL := "artifactory/" + TestArtifactPath
+	resp, err := rc.R().Head(artifactURL)
+	if err == nil && resp.StatusCode() == http.StatusOK {
+		return // already exists
+	}
+	put, err := rc.R().
+		SetHeader("Content-Type", "text/plain").
+		SetBody([]byte("acceptance test artifact")).
+		Put(artifactURL)
+	if err != nil {
+		t.Fatalf("EnsureTestArtifact: PUT error: %v", err)
+	}
+	if put.StatusCode() != http.StatusCreated && put.StatusCode() != http.StatusOK {
+		t.Fatalf("EnsureTestArtifact: unexpected status %d: %s", put.StatusCode(), put.String())
 	}
 }
 

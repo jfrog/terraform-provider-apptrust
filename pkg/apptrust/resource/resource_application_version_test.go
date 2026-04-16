@@ -72,11 +72,17 @@ func TestAccApplicationVersion_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            versionFqrn,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"source_artifacts", "source_builds"}, // List API does not return sources
-				ImportStateId:           fmt.Sprintf("%s:%s", appKey, version),
+				ResourceName:      versionFqrn,
+				ImportState:       true,
+				ImportStateVerify: true,
+				// The list API does not return source inputs or filter inputs.
+				ImportStateVerifyIgnore: []string{
+					"source_artifacts", "source_builds", "source_versions",
+					"source_release_bundles", "source_packages", "source_aql",
+					"skip_docker_manifest_resolution", "filter_included", "filter_excluded",
+					"draft",
+				},
+				ImportStateId: fmt.Sprintf("%s:%s", appKey, version),
 			},
 		},
 	})
@@ -130,6 +136,52 @@ func TestAccApplicationVersion_updateTag(t *testing.T) {
 		Steps: []resource.TestStep{
 			{Config: config, Check: resource.TestCheckResourceAttr(versionFqrn, "tag", "v1")},
 			{Config: updatedConfig, Check: resource.TestCheckResourceAttr(versionFqrn, "tag", "updated-tag")},
+		},
+	})
+}
+
+func TestAccApplicationVersion_draft(t *testing.T) {
+	acctest.SkipIfNotAcc(t)
+	acctest.PreCheck(t)
+
+	id, appFqrn, appName := testutil.MkNames("test-app-", "apptrust_application")
+	versionId, versionFqrn, versionName := testutil.MkNames("test-ver-", "apptrust_application_version")
+	projectKey := acctest.AppTrustProjectKey1
+	appKey := fmt.Sprintf("app-%d", id)
+	version := fmt.Sprintf("3.0.%d", versionId)
+
+	config := fmt.Sprintf(`
+		resource "apptrust_application" "%s" {
+			application_key  = "%s"
+			application_name = "%s"
+			project_key      = "%s"
+		}
+		resource "apptrust_application_version" "%s" {
+			application_key = apptrust_application.%s.application_key
+			version         = "%s"
+			draft           = true
+			source_artifacts = [
+				{ path = "generic-repo/readme.md" }
+			]
+		}
+	`, appName, appKey, appName, projectKey, versionName, appName, version)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: acctest.ProtoV6ProviderFactories,
+		PreCheck:                 func() { acctest.PreCheck(t) },
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckApplicationVersionDestroy(versionFqrn),
+			testAccCheckApplicationDestroy(appFqrn),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(versionFqrn, "application_key", appKey),
+					resource.TestCheckResourceAttr(versionFqrn, "version", version),
+					resource.TestCheckResourceAttr(versionFqrn, "draft", "true"),
+				),
+			},
 		},
 	})
 }

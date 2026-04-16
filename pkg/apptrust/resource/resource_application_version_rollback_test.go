@@ -16,7 +16,6 @@ package resource_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -24,16 +23,12 @@ import (
 	"github.com/jfrog/terraform-provider-shared/testutil"
 )
 
-// TestAccApplicationVersionRollback_basic creates app -> version -> promotion -> rollback.
-// Requires lifecycle stage (e.g. QA). Set APPTRUST_TEST_TARGET_STAGE to match your project.
+// TestAccApplicationVersionRollback_basic provisions a lifecycle via terraform-provider-platform
+// then creates app -> version -> promotion to DEV -> rollback from DEV.
 func TestAccApplicationVersionRollback_basic(t *testing.T) {
 	acctest.SkipIfNotAcc(t)
 	acctest.PreCheck(t)
-
-	targetStage := os.Getenv("APPTRUST_TEST_TARGET_STAGE")
-	if targetStage == "" {
-		targetStage = "QA"
-	}
+	acctest.EnsureTestArtifact(t)
 
 	id, appFqrn, appName := testutil.MkNames("test-app-", "apptrust_application")
 	versionId, versionFqrn, versionName := testutil.MkNames("test-ver-", "apptrust_application_version")
@@ -42,35 +37,68 @@ func TestAccApplicationVersionRollback_basic(t *testing.T) {
 	projectKey := acctest.AppTrustProjectKey1
 	appKey := fmt.Sprintf("app-%d", id)
 	version := fmt.Sprintf("1.0.%d", versionId)
+	const targetStage = "DEV"
+
+	jfrogURL := acctest.GetArtifactoryUrl(t)
+	accessToken := acctest.GetAccessToken(t)
 
 	config := fmt.Sprintf(`
+		provider "platform" {
+			url          = "%s"
+			access_token = "%s"
+		}
+
+		resource "platform_lifecycle" "project" {
+			project_key    = "%s"
+			promote_stages = ["DEV"]
+		}
+
 		resource "apptrust_application" "%s" {
 			application_key  = "%s"
 			application_name = "%s"
 			project_key      = "%s"
 		}
+
 		resource "apptrust_application_version" "%s" {
 			application_key  = apptrust_application.%s.application_key
 			version          = "%s"
 			tag              = "acc-rollback"
-			source_artifacts = [{ path = "generic-repo/readme.md" }]
+			source_artifacts = [{ path = "%s" }]
 		}
+
 		resource "apptrust_application_version_promotion" "%s" {
 			application_key = apptrust_application_version.%s.application_key
-			version        = apptrust_application_version.%s.version
-			target_stage   = "%s"
-			promotion_type = "copy"
+			version         = apptrust_application_version.%s.version
+			target_stage    = "%s"
+			promotion_type  = "copy"
+			depends_on      = [platform_lifecycle.project]
 		}
+
+		# Rollback must run after promotion is applied.
 		resource "apptrust_application_version_rollback" "%s" {
 			application_key = apptrust_application_version.%s.application_key
 			version         = apptrust_application_version.%s.version
 			from_stage      = "%s"
+			depends_on      = [apptrust_application_version_promotion.%s]
 		}
-	`, appName, appKey, appName, projectKey, versionName, appName, version, promoName, versionName, versionName, targetStage, rollbackName, versionName, versionName, targetStage)
+	`,
+		jfrogURL, accessToken,
+		projectKey,
+		appName, appKey, appName, projectKey,
+		versionName, appName, version, acctest.TestArtifactPath,
+		promoName, versionName, versionName, targetStage,
+		rollbackName, versionName, versionName, targetStage, promoName,
+	)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.ProtoV6ProviderFactories,
-		PreCheck:                 func() { acctest.PreCheck(t) },
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"platform": {
+				Source:            "jfrog/platform",
+				VersionConstraint: "~> 2.2",
+			},
+		},
+		PreCheck: func() { acctest.PreCheck(t) },
 		CheckDestroy: resource.ComposeTestCheckFunc(
 			testAccCheckApplicationVersionDestroy(versionFqrn),
 			testAccCheckApplicationDestroy(appFqrn),
