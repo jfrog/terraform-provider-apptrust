@@ -171,7 +171,7 @@ func (d *BoundPackageVersionsDataSource) Read(ctx context.Context, req datasourc
 
 	if httpResponse.StatusCode() != http.StatusOK {
 		if httpResponse.StatusCode() == http.StatusNotFound {
-			data.Versions = types.ListNull(types.ObjectType{AttrTypes: boundPackageVersionAttrType})
+			data.Versions = types.ListValueMust(types.ObjectType{AttrTypes: boundPackageVersionAttrType}, []attr.Value{})
 			data.Total = types.Int64Value(0)
 			resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 			return
@@ -192,7 +192,7 @@ func (d *BoundPackageVersionsDataSource) Read(ctx context.Context, req datasourc
 func (m *BoundPackageVersionsDataSourceModel) fromAPIModel(ctx context.Context, api boundPackageVersionsResponseAPIModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 	m.Total = types.Int64Value(int64(api.Total))
-	var items []attr.Value
+	items := make([]attr.Value, 0, len(api.Versions))
 	for _, v := range api.Versions {
 		branch := v.VcsBranch
 		if branch == "" {

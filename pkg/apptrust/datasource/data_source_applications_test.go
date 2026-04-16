@@ -92,15 +92,21 @@ func TestAccApplicationsDataSource_filterByMaturity(t *testing.T) {
 		nameExp, appKeyExp, nameExp, projectKey,
 		nameUnspec, appKeyUnspec, nameUnspec, projectKey)
 
-	// Query with maturity = "production" — only production apps should be returned (project assumed empty)
+	// Query with maturity = "production" — only production apps should be returned.
+	// depends_on forces Terraform to create all three resources before reading the datasource.
 	dataSourceConfig := fmt.Sprintf(`
 		%s
 
 		data "apptrust_applications" "test" {
 			project_key = "%s"
 			maturity    = "production"
+			depends_on  = [
+				apptrust_application.%s,
+				apptrust_application.%s,
+				apptrust_application.%s,
+			]
 		}
-	`, resourceConfig, projectKey)
+	`, resourceConfig, projectKey, nameProd, nameExp, nameUnspec)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.ProtoV6ProviderFactories,

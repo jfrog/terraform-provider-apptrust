@@ -64,27 +64,38 @@ type ApplicationsDataSourceModel struct {
 	Total         types.Int64  `tfsdk:"total"`
 }
 
-// SingleApplicationResponse matches the API response structure for GET /v1/applications
-// The API returns an array of these objects directly
-type SingleApplicationResponse struct {
-	ApplicationKey  string            `json:"application_key"`
-	ApplicationName string            `json:"application_name"`
-	ProjectKey      string            `json:"project_key"`
-	Description     string            `json:"description,omitempty"`
-	MaturityLevel   string            `json:"maturity_level,omitempty"`
-	Criticality     string            `json:"criticality,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
-	UserOwners      []string          `json:"user_owners,omitempty"`
-	GroupOwners     []string          `json:"group_owners,omitempty"`
+// singleApplicationResponse matches the API response for each application in GET /v1/applications.
+// Labels are returned as an array of key/value objects (not a map).
+type singleApplicationResponse struct {
+	ApplicationKey  string           `json:"application_key"`
+	ApplicationName string           `json:"application_name"`
+	ProjectKey      string           `json:"project_key"`
+	Description     string           `json:"description,omitempty"`
+	MaturityLevel   string           `json:"maturity_level,omitempty"`
+	Criticality     string           `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel  `json:"labels,omitempty"`
+	UserOwners      []string         `json:"user_owners,omitempty"`
+	GroupOwners     []string         `json:"group_owners,omitempty"`
+}
+
+// paginatedApplicationsAPIResponse matches the paginated wrapper returned by GET /v1/applications.
+type paginatedApplicationsAPIResponse struct {
+	Applications []singleApplicationResponse `json:"applications"`
+	Total        int                         `json:"total"`
+	Limit        int                         `json:"limit"`
+	Offset       int                         `json:"offset"`
 }
 
 type ApplicationListItemAPIModel struct {
-	ProjectKey               string `json:"project_key"`
-	ApplicationName          string `json:"application_name"`
-	ApplicationKey           string `json:"application_key"`
-	ApplicationVersionLatest string `json:"application_version_latest,omitempty"`
-	ApplicationVersionTag    string `json:"application_version_tag,omitempty"`
-	ApplicationVersionsCount int    `json:"application_versions_count,omitempty"`
+	ProjectKey      string          `json:"project_key"`
+	ApplicationName string          `json:"application_name"`
+	ApplicationKey  string          `json:"application_key"`
+	Description     string          `json:"description,omitempty"`
+	MaturityLevel   string          `json:"maturity_level,omitempty"`
+	Criticality     string          `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel `json:"labels,omitempty"`
+	UserOwners      []string        `json:"user_owners,omitempty"`
+	GroupOwners     []string        `json:"group_owners,omitempty"`
 }
 
 type ApplicationsListAPIModel struct {
@@ -101,12 +112,15 @@ var (
 )
 
 var applicationListItemAttrType = map[string]attr.Type{
-	"project_key":                types.StringType,
-	"application_name":           types.StringType,
-	"application_key":            types.StringType,
-	"application_version_latest": types.StringType,
-	"application_version_tag":    types.StringType,
-	"application_versions_count": types.Int64Type,
+	"project_key":      types.StringType,
+	"application_name": types.StringType,
+	"application_key":  types.StringType,
+	"description":      types.StringType,
+	"maturity_level":   types.StringType,
+	"criticality":      types.StringType,
+	"labels":           types.MapType{ElemType: types.StringType},
+	"user_owners":      types.ListType{ElemType: types.StringType},
+	"group_owners":     types.ListType{ElemType: types.StringType},
 }
 
 func (d *ApplicationsDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -115,7 +129,7 @@ func (d *ApplicationsDataSource) Metadata(ctx context.Context, req datasource.Me
 
 func (d *ApplicationsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Returns a list of AppTrust applications, including the latest version and the total number of versions. " +
+		MarkdownDescription: "Returns a list of AppTrust applications with their full details. " +
 			"Supports filtering, pagination, and sorting.\n\n" +
 			"## API Notes\n\n" +
 			"- The API endpoint `GET /v1/applications` supports filtering by project_key, name, criticality, maturity, label, and owner (each filter can be specified multiple times where applicable).\n" +
@@ -205,16 +219,31 @@ func (d *ApplicationsDataSource) Schema(ctx context.Context, req datasource.Sche
 							Description: "The application key.",
 							Computed:    true,
 						},
-						"application_version_latest": schema.StringAttribute{
-							Description: "The latest version of the application.",
+						"description": schema.StringAttribute{
+							Description: "A free-text description of the application.",
 							Computed:    true,
 						},
-						"application_version_tag": schema.StringAttribute{
-							Description: "The tag associated with the latest application version.",
+						"maturity_level": schema.StringAttribute{
+							Description: "The maturity level of the application.",
 							Computed:    true,
 						},
-						"application_versions_count": schema.Int64Attribute{
-							Description: "The total number of versions for this application.",
+						"criticality": schema.StringAttribute{
+							Description: "A classification of how critical the application is for your business.",
+							Computed:    true,
+						},
+						"labels": schema.MapAttribute{
+							Description: "Key-value pairs that label the application.",
+							ElementType: types.StringType,
+							Computed:    true,
+						},
+						"user_owners": schema.ListAttribute{
+							Description: "List of users who own the application.",
+							ElementType: types.StringType,
+							Computed:    true,
+						},
+						"group_owners": schema.ListAttribute{
+							Description: "List of user groups who own the application.",
+							ElementType: types.StringType,
 							Computed:    true,
 						},
 					},
@@ -299,12 +328,12 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 
-	// API returns an array of SingleApplicationResponse directly, not wrapped in an object
-	var apiApplications []SingleApplicationResponse
+	// The API returns a paginated wrapper: {"applications": [...], "total": N, "limit": N, "offset": N}
+	var apiResp paginatedApplicationsAPIResponse
 	response, err := d.ProviderData.Client.R().
 		SetContext(ctx).
 		SetQueryParamsFromValues(queryValues).
-		SetResult(&apiApplications).
+		SetResult(&apiResp).
 		Get(applicationsEndpoint)
 
 	if err != nil {
@@ -320,7 +349,7 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if response.IsError() {
 		if response.StatusCode() == http.StatusNotFound {
 			// No applications found, return empty list
-			apiApplications = []SingleApplicationResponse{}
+			apiResp = paginatedApplicationsAPIResponse{}
 		} else {
 			resp.Diagnostics.AddError(
 				"Unable to Read Data Source",
@@ -332,36 +361,26 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		}
 	}
 
-	// Convert API response (array of SingleApplicationResponse) to ApplicationsListAPIModel
-	// Note: The API doesn't return pagination metadata, so we calculate total from array length
-	// and use the requested limit/offset values
-	limit := 0
-	if !data.Limit.IsNull() {
-		limit = int(data.Limit.ValueInt64())
-	}
-	offset := 0
-	if !data.Offset.IsNull() {
-		offset = int(data.Offset.ValueInt64())
-	}
-
+	// Convert API response to ApplicationsListAPIModel using actual pagination metadata from API.
 	result := ApplicationsListAPIModel{
-		Applications: make([]ApplicationListItemAPIModel, len(apiApplications)),
-		Total:        len(apiApplications),
-		Limit:        limit,
-		Offset:       offset,
+		Applications: make([]ApplicationListItemAPIModel, len(apiResp.Applications)),
+		Total:        apiResp.Total,
+		Limit:        apiResp.Limit,
+		Offset:       apiResp.Offset,
 	}
 
-	// Convert SingleApplicationResponse to ApplicationListItemAPIModel
-	// Note: API response doesn't include version info in list endpoint
-	for i, app := range apiApplications {
+	// Convert singleApplicationResponse to ApplicationListItemAPIModel.
+	for i, app := range apiResp.Applications {
 		result.Applications[i] = ApplicationListItemAPIModel{
 			ProjectKey:      app.ProjectKey,
 			ApplicationKey:  app.ApplicationKey,
 			ApplicationName: app.ApplicationName,
-			// These fields are not returned by the list endpoint, set to empty/default values
-			ApplicationVersionLatest: "",
-			ApplicationVersionTag:    "",
-			ApplicationVersionsCount: 0,
+			Description:     app.Description,
+			MaturityLevel:   app.MaturityLevel,
+			Criticality:     app.Criticality,
+			Labels:          app.Labels,
+			UserOwners:      app.UserOwners,
+			GroupOwners:     app.GroupOwners,
 		}
 	}
 
@@ -381,17 +400,54 @@ func (m *ApplicationsDataSourceModel) FromAPIModel(ctx context.Context, data App
 
 	var applications []attr.Value
 	for _, app := range data.Applications {
-		appObj := types.ObjectValueMust(
+		// Convert labels slice to map
+		labelsMap := types.MapValueMust(types.StringType, map[string]attr.Value{})
+		if len(app.Labels) > 0 {
+			labelsData := make(map[string]attr.Value, len(app.Labels))
+			for _, label := range app.Labels {
+				labelsData[label.Key] = types.StringValue(label.Value)
+			}
+			labelsMap = types.MapValueMust(types.StringType, labelsData)
+		}
+
+		// Convert user_owners
+		userOwnersList := types.ListValueMust(types.StringType, []attr.Value{})
+		if len(app.UserOwners) > 0 {
+			userOwnerVals := make([]attr.Value, len(app.UserOwners))
+			for i, v := range app.UserOwners {
+				userOwnerVals[i] = types.StringValue(v)
+			}
+			userOwnersList = types.ListValueMust(types.StringType, userOwnerVals)
+		}
+
+		// Convert group_owners
+		groupOwnersList := types.ListValueMust(types.StringType, []attr.Value{})
+		if len(app.GroupOwners) > 0 {
+			groupOwnerVals := make([]attr.Value, len(app.GroupOwners))
+			for i, v := range app.GroupOwners {
+				groupOwnerVals[i] = types.StringValue(v)
+			}
+			groupOwnersList = types.ListValueMust(types.StringType, groupOwnerVals)
+		}
+
+		appObj, d := types.ObjectValue(
 			applicationListItemAttrType,
 			map[string]attr.Value{
-				"project_key":                types.StringValue(app.ProjectKey),
-				"application_name":           types.StringValue(app.ApplicationName),
-				"application_key":            types.StringValue(app.ApplicationKey),
-				"application_version_latest": types.StringValue(app.ApplicationVersionLatest),
-				"application_version_tag":    types.StringValue(app.ApplicationVersionTag),
-				"application_versions_count": types.Int64Value(int64(app.ApplicationVersionsCount)),
+				"project_key":      types.StringValue(app.ProjectKey),
+				"application_name": types.StringValue(app.ApplicationName),
+				"application_key":  types.StringValue(app.ApplicationKey),
+				"description":      types.StringValue(app.Description),
+				"maturity_level":   types.StringValue(app.MaturityLevel),
+				"criticality":      types.StringValue(app.Criticality),
+				"labels":           labelsMap,
+				"user_owners":      userOwnersList,
+				"group_owners":     groupOwnersList,
 			},
 		)
+		diags.Append(d...)
+		if diags.HasError() {
+			return diags
+		}
 		applications = append(applications, appObj)
 	}
 

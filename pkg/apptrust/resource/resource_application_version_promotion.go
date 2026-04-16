@@ -18,6 +18,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
+
+	restylib "github.com/go-resty/resty/v2"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -172,21 +176,53 @@ func (r *ApplicationVersionPromotionResource) Create(ctx context.Context, req re
 		}
 	}
 
-	httpResponse, err := r.ProviderData.Client.R().
-		SetContext(ctx).
-		SetPathParam("application_key", plan.ApplicationKey.ValueString()).
-		SetPathParam("version", plan.Version.ValueString()).
-		SetBody(body).
-		Post(ApplicationVersionPromoteEP)
+	// The AppTrust version creation is async. If the version is still being processed
+	// (status STARTED/PROCESSING), the promote API returns 400 "Invalid status: STARTED".
+	// Retry with backoff until the version reaches a promotable state or timeout.
+	const maxAttempts = 12
+	const retryDelay = 5 * time.Second
 
-	if err != nil {
+	var httpResponse *restylib.Response
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		r2, err := r.ProviderData.Client.R().
+			SetContext(ctx).
+			SetPathParam("application_key", plan.ApplicationKey.ValueString()).
+			SetPathParam("version", plan.Version.ValueString()).
+			SetBody(body).
+			Post(ApplicationVersionPromoteEP)
+		if err != nil {
+			lastErr = err
+			break
+		}
+		httpResponse = r2
+		// Retry only when the version is still processing.
+		if (r2.StatusCode() == http.StatusBadRequest || r2.StatusCode() == http.StatusUnprocessableEntity) &&
+			(strings.Contains(r2.String(), "STARTED") || strings.Contains(r2.String(), "PROCESSING")) {
+			tflog.Info(ctx, "Application version still processing, retrying promotion", map[string]interface{}{
+				"attempt":         attempt,
+				"application_key": plan.ApplicationKey.ValueString(),
+				"version":         plan.Version.ValueString(),
+			})
+			select {
+			case <-ctx.Done():
+				utilfw.UnableToCreateResourceError(resp, "context cancelled while waiting for version to be ready")
+				return
+			case <-time.After(retryDelay):
+			}
+			continue
+		}
+		break
+	}
+
+	if lastErr != nil {
 		tflog.Error(ctx, "Failed to promote application version", map[string]interface{}{
 			"application_key": plan.ApplicationKey.ValueString(),
 			"version":         plan.Version.ValueString(),
 			"target_stage":    plan.TargetStage.ValueString(),
-			"error":           err.Error(),
+			"error":           lastErr.Error(),
 		})
-		utilfw.UnableToCreateResourceError(resp, err.Error())
+		utilfw.UnableToCreateResourceError(resp, lastErr.Error())
 		return
 	}
 

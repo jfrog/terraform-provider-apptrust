@@ -16,7 +16,6 @@ package resource_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -24,16 +23,14 @@ import (
 	"github.com/jfrog/terraform-provider-shared/testutil"
 )
 
-// TestAccApplicationVersionPromotion_basic creates an application, version, and promotes to a target stage.
-// Requires lifecycle stage (e.g. QA) to exist in the project. Set APPTRUST_TEST_TARGET_STAGE to match your project.
+// TestAccApplicationVersionPromotion_basic provisions a lifecycle stage via
+// terraform-provider-platform (using the existing global "DEV" stage which already
+// has repositories assigned by the platform), creates an application version, and
+// promotes it to DEV.
 func TestAccApplicationVersionPromotion_basic(t *testing.T) {
 	acctest.SkipIfNotAcc(t)
 	acctest.PreCheck(t)
-
-	targetStage := os.Getenv("APPTRUST_TEST_TARGET_STAGE")
-	if targetStage == "" {
-		targetStage = "QA"
-	}
+	acctest.EnsureTestArtifact(t)
 
 	id, appFqrn, appName := testutil.MkNames("test-app-", "apptrust_application")
 	versionId, versionFqrn, versionName := testutil.MkNames("test-ver-", "apptrust_application_version")
@@ -42,29 +39,64 @@ func TestAccApplicationVersionPromotion_basic(t *testing.T) {
 	appKey := fmt.Sprintf("app-%d", id)
 	version := fmt.Sprintf("1.0.%d", versionId)
 
+	// Use the global "DEV" stage. It always exists on JFrog instances and already
+	// has the project's application-versions repository assigned. We add it to the
+	// project lifecycle so AppTrust can promote to it.
+	const targetStage = "DEV"
+
+	jfrogURL := acctest.GetArtifactoryUrl(t)
+	accessToken := acctest.GetAccessToken(t)
+
 	config := fmt.Sprintf(`
+		provider "platform" {
+			url          = "%s"
+			access_token = "%s"
+		}
+
+		# Register DEV in the project lifecycle so AppTrust can target it.
+		# DEV is a global stage that already has the project's repos assigned.
+		resource "platform_lifecycle" "project" {
+			project_key    = "%s"
+			promote_stages = ["DEV"]
+		}
+
 		resource "apptrust_application" "%s" {
 			application_key  = "%s"
 			application_name = "%s"
 			project_key      = "%s"
 		}
+
 		resource "apptrust_application_version" "%s" {
-			application_key   = apptrust_application.%s.application_key
-			version           = "%s"
-			tag               = "acc-test"
-			source_artifacts  = [{ path = "generic-repo/readme.md" }]
+			application_key  = apptrust_application.%s.application_key
+			version          = "%s"
+			tag              = "acc-test"
+			source_artifacts = [{ path = "%s" }]
 		}
+
 		resource "apptrust_application_version_promotion" "%s" {
 			application_key = apptrust_application_version.%s.application_key
-			version        = apptrust_application_version.%s.version
-			target_stage   = "%s"
-			promotion_type = "copy"
+			version         = apptrust_application_version.%s.version
+			target_stage    = "%s"
+			promotion_type  = "copy"
+			depends_on      = [platform_lifecycle.project]
 		}
-	`, appName, appKey, appName, projectKey, versionName, appName, version, promoName, versionName, versionName, targetStage)
+	`,
+		jfrogURL, accessToken,
+		projectKey,
+		appName, appKey, appName, projectKey,
+		versionName, appName, version, acctest.TestArtifactPath,
+		promoName, versionName, versionName, targetStage,
+	)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.ProtoV6ProviderFactories,
-		PreCheck:                 func() { acctest.PreCheck(t) },
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"platform": {
+				Source:            "jfrog/platform",
+				VersionConstraint: "~> 2.2",
+			},
+		},
+		PreCheck: func() { acctest.PreCheck(t) },
 		CheckDestroy: resource.ComposeTestCheckFunc(
 			testAccCheckApplicationVersionDestroy(versionFqrn),
 			testAccCheckApplicationDestroy(appFqrn),
