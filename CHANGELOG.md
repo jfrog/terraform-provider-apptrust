@@ -1,3 +1,9 @@
+## 1.1.0 (June 16, 2026)
+
+FEATURES:
+
+* **New Resource:** `apptrust_application_version_integration_event` — posts an integration event (`reference`, `status`, `type`, optional `event_message`/`properties`) for an application version (`POST /v1/applications/{application_key}/versions/{version}/integration_event`). PR: [#17](https://github.com/jfrog/terraform-provider-apptrust/pull/17)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
