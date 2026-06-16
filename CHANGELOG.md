@@ -1,3 +1,9 @@
+## 1.1.0 (June 16, 2026)
+
+FEATURES:
+
+* **New Resource:** `apptrust_integrations_config` PR: [#25](https://github.com/jfrog/terraform-provider-apptrust/pull/25)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
