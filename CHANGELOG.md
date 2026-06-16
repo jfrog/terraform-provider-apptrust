@@ -1,3 +1,9 @@
+## 1.0.3 (June 16, 2026)
+
+IMPROVEMENTS:
+
+* resource/apptrust_bound_package: Add new API support PR: [#34](https://github.com/jfrog/terraform-provider-apptrust/pull/34)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
