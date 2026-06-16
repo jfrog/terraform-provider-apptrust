@@ -1,3 +1,9 @@
+## 1.1.0 (June 16, 2026)
+
+FEATURES:
+
+* **New Data Source:** `apptrust_stages_release` PR: [#27](https://github.com/jfrog/terraform-provider-apptrust/pull/27)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
