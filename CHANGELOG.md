@@ -1,3 +1,9 @@
+## 1.1.0 (June 16, 2026)
+
+FEATURES:
+
+* **New Resource:** `apptrust_applications_batch` PR: [#24](https://github.com/jfrog/terraform-provider-apptrust/pull/24)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
