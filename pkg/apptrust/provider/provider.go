@@ -268,5 +268,6 @@ func (p *AppTrustProvider) DataSources(ctx context.Context) []func() datasource.
 		apptrust_datasource.NewApplicationVersionPromotionsDataSource,
 		apptrust_datasource.NewApplicationPackageBindingsDataSource,
 		apptrust_datasource.NewBoundPackageVersionsDataSource,
+		apptrust_datasource.NewProjectReleaseStageDataSource,
 	}
 }

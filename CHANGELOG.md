@@ -1,3 +1,9 @@
+## 1.1.0 (June 15, 2026)
+
+FEATURES:
+
+* **New Data Source:** `apptrust_project_release_stage` — returns the release stage (`stage_name`, `gates`) configured for a project (`GET /v1/projects/{project_key}/stages/release`). PR: [#14](https://github.com/jfrog/terraform-provider-apptrust/pull/14)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
