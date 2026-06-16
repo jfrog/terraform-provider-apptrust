@@ -1,3 +1,9 @@
+## 1.1.0 (June 15, 2026)
+
+FEATURES:
+
+* **New Resource:** `apptrust_support_bundle` — creates a support bundle for the AppTrust service (`PUT /v1/system/support/bundle/{id}`). PR: [#15](https://github.com/jfrog/terraform-provider-apptrust/pull/15)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
