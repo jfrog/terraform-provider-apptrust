@@ -1,3 +1,9 @@
+## 1.1.0 (June 15, 2026)
+
+FEATURES:
+
+* **New Data Source:** `apptrust_metrics` — collects the AppTrust service metrics (Prometheus exposition format) via `GET /v1/metrics`. PR: [#13](https://github.com/jfrog/terraform-provider-apptrust/pull/13)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
