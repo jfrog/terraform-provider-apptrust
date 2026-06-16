@@ -1,3 +1,9 @@
+## 1.1.0 (June 16, 2026)
+
+FEATURES:
+
+* **New Data Source:** `apptrust_system_service_id` PR: [#31](https://github.com/jfrog/terraform-provider-apptrust/pull/31)
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
