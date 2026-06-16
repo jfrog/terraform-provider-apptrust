@@ -254,6 +254,7 @@ func (p *AppTrustProvider) Resources(ctx context.Context) []func() resource.Reso
 		apptrust_resource.NewApplicationVersionReleaseResource,
 		apptrust_resource.NewApplicationVersionRollbackResource,
 		apptrust_resource.NewBoundPackageResource,
+		apptrust_resource.NewApplicationUnsyncIntegrationResource,
 	}
 }
 
