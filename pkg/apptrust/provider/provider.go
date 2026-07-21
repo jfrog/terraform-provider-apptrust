@@ -260,6 +260,7 @@ func (p *AppTrustProvider) Resources(ctx context.Context) []func() resource.Reso
 // DataSources returns the list of data sources supported by this provider.
 func (p *AppTrustProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		apptrust_datasource.NewActivityLogDataSource,
 		apptrust_datasource.NewApplicationDataSource,
 		apptrust_datasource.NewApplicationsDataSource,
 		apptrust_datasource.NewApplicationVersionDataSource,
