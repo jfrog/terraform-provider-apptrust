@@ -79,25 +79,25 @@ type LabelAPIModel struct {
 }
 
 type ApplicationAPIModel struct {
-	ApplicationKey  string           `json:"application_key"`
-	ApplicationName string           `json:"application_name"`
-	ProjectKey      string           `json:"project_key"`
-	Description     string           `json:"description,omitempty"`
-	MaturityLevel   string           `json:"maturity_level,omitempty"`
-	Criticality     string           `json:"criticality,omitempty"`
-	Labels          []LabelAPIModel  `json:"labels,omitempty"`
-	UserOwners      []string         `json:"user_owners,omitempty"`
-	GroupOwners     []string         `json:"group_owners,omitempty"`
+	ApplicationKey  string          `json:"application_key"`
+	ApplicationName string          `json:"application_name"`
+	ProjectKey      string          `json:"project_key"`
+	Description     string          `json:"description,omitempty"`
+	MaturityLevel   string          `json:"maturity_level,omitempty"`
+	Criticality     string          `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel `json:"labels,omitempty"`
+	UserOwners      []string        `json:"user_owners,omitempty"`
+	GroupOwners     []string        `json:"group_owners,omitempty"`
 }
 
 type UpdateApplicationAPIModel struct {
-	ApplicationName *string          `json:"application_name,omitempty"`
-	Description     *string          `json:"description,omitempty"`
-	MaturityLevel   *string          `json:"maturity_level,omitempty"`
-	Criticality     *string          `json:"criticality,omitempty"`
-	Labels          []LabelAPIModel  `json:"labels"`       // No omitempty - empty array must be sent to clear
-	UserOwners      []string         `json:"user_owners"`  // No omitempty - empty array must be sent to clear
-	GroupOwners     []string         `json:"group_owners"` // No omitempty - empty array must be sent to clear
+	ApplicationName *string         `json:"application_name,omitempty"`
+	Description     *string         `json:"description,omitempty"`
+	MaturityLevel   *string         `json:"maturity_level,omitempty"`
+	Criticality     *string         `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel `json:"labels"`       // No omitempty - empty array must be sent to clear
+	UserOwners      []string        `json:"user_owners"`  // No omitempty - empty array must be sent to clear
+	GroupOwners     []string        `json:"group_owners"` // No omitempty - empty array must be sent to clear
 }
 
 var (

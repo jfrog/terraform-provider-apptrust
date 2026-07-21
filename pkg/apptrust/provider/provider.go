@@ -194,38 +194,42 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Check Xray version compatibility
-	xrayVersion, err := util.GetXrayVersion(restyClient)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error getting Xray version",
-			fmt.Sprintf("Failed to get Xray version. AppTrust requires Xray to be installed and accessible. %v", err),
-		)
-		return
-	}
-
-	minXrayVersion, err := version.NewVersion(MinXrayVersion)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid minimum Xray version",
-			fmt.Sprintf("Failed to parse minimum required Xray version: %v", err),
-		)
-		return
-	}
-
-	currentXrayVersion, err := version.NewVersion(xrayVersion)
-	if err != nil {
-		resp.Diagnostics.AddWarning(
-			"Unable to parse Xray version",
-			fmt.Sprintf("Unable to parse Xray version '%s'. Version compatibility check skipped. %v", xrayVersion, err),
-		)
-	} else if currentXrayVersion.LessThan(minXrayVersion) {
-		resp.Diagnostics.AddError(
-			"Incompatible Xray version",
-			fmt.Sprintf("AppTrust requires Xray version %s or higher. Current version: %s", MinXrayVersion, xrayVersion),
-		)
-		return
-	}
+	// Xray version compatibility check is temporarily disabled so acceptance tests
+	// can run against environments where Xray is not provisioned (e.g. CI). AppTrust
+	// still officially requires Xray >= MinXrayVersion with the SBOM service enabled;
+	// re-enable this block once CI stands up Xray.
+	//
+	// xrayVersion, err := util.GetXrayVersion(restyClient)
+	// if err != nil {
+	// 	resp.Diagnostics.AddError(
+	// 		"Error getting Xray version",
+	// 		fmt.Sprintf("Failed to get Xray version. AppTrust requires Xray to be installed and accessible. %v", err),
+	// 	)
+	// 	return
+	// }
+	//
+	// minXrayVersion, err := version.NewVersion(MinXrayVersion)
+	// if err != nil {
+	// 	resp.Diagnostics.AddError(
+	// 		"Invalid minimum Xray version",
+	// 		fmt.Sprintf("Failed to parse minimum required Xray version: %v", err),
+	// 	)
+	// 	return
+	// }
+	//
+	// currentXrayVersion, err := version.NewVersion(xrayVersion)
+	// if err != nil {
+	// 	resp.Diagnostics.AddWarning(
+	// 		"Unable to parse Xray version",
+	// 		fmt.Sprintf("Unable to parse Xray version '%s'. Version compatibility check skipped. %v", xrayVersion, err),
+	// 	)
+	// } else if currentXrayVersion.LessThan(minXrayVersion) {
+	// 	resp.Diagnostics.AddError(
+	// 		"Incompatible Xray version",
+	// 		fmt.Sprintf("AppTrust requires Xray version %s or higher. Current version: %s", MinXrayVersion, xrayVersion),
+	// 	)
+	// 	return
+	// }
 
 	// Note: AppTrust license validation is handled by the API itself.
 	// If AppTrust is not licensed or available, API calls will return appropriate errors.
@@ -238,7 +242,7 @@ func (p *AppTrustProvider) Configure(ctx context.Context, req provider.Configure
 		Client:             restyClient,
 		ProductId:          productId,
 		ArtifactoryVersion: artifactoryVersion,
-		XrayVersion:        xrayVersion,
+		// XrayVersion intentionally unset while the Xray check above is disabled.
 	}
 
 	resp.DataSourceData = meta

@@ -54,20 +54,20 @@ type ApplicationVersionResource struct {
 }
 
 type ApplicationVersionResourceModel struct {
-	ID              types.String `tfsdk:"id"`
-	ApplicationKey  types.String `tfsdk:"application_key"`
-	Version         types.String `tfsdk:"version"`
-	Tag             types.String `tfsdk:"tag"`
-	Draft           types.Bool   `tfsdk:"draft"`
-	SourceArtifacts types.List   `tfsdk:"source_artifacts"`
-	SourceBuilds    types.List   `tfsdk:"source_builds"`
-	SourceVersions  types.List   `tfsdk:"source_versions"`
-	SourceReleaseBundles         types.List `tfsdk:"source_release_bundles"`
-	SourcePackages               types.List `tfsdk:"source_packages"`
+	ID                           types.String `tfsdk:"id"`
+	ApplicationKey               types.String `tfsdk:"application_key"`
+	Version                      types.String `tfsdk:"version"`
+	Tag                          types.String `tfsdk:"tag"`
+	Draft                        types.Bool   `tfsdk:"draft"`
+	SourceArtifacts              types.List   `tfsdk:"source_artifacts"`
+	SourceBuilds                 types.List   `tfsdk:"source_builds"`
+	SourceVersions               types.List   `tfsdk:"source_versions"`
+	SourceReleaseBundles         types.List   `tfsdk:"source_release_bundles"`
+	SourcePackages               types.List   `tfsdk:"source_packages"`
 	SourceAql                    types.String `tfsdk:"source_aql"`
 	SkipDockerManifestResolution types.Bool   `tfsdk:"skip_docker_manifest_resolution"`
-	FilterIncluded               types.List `tfsdk:"filter_included"`
-	FilterExcluded               types.List `tfsdk:"filter_excluded"`
+	FilterIncluded               types.List   `tfsdk:"filter_included"`
+	FilterExcluded               types.List   `tfsdk:"filter_excluded"`
 	// UpdateAppVersionRequest: optional properties and delete_properties
 	Properties       types.Map  `tfsdk:"properties"`
 	DeleteProperties types.List `tfsdk:"delete_properties"`
@@ -129,13 +129,13 @@ type createApplicationVersionFilters struct {
 }
 
 type createApplicationVersionSources struct {
-	Artifacts                    []applicationVersionSourceArtifact    `json:"artifacts,omitempty"`
-	Builds                       []applicationVersionSourceBuild       `json:"builds,omitempty"`
-	Versions                     []applicationVersionSourceVersion     `json:"versions,omitempty"`
+	Artifacts                    []applicationVersionSourceArtifact      `json:"artifacts,omitempty"`
+	Builds                       []applicationVersionSourceBuild         `json:"builds,omitempty"`
+	Versions                     []applicationVersionSourceVersion       `json:"versions,omitempty"`
 	ReleaseBundles               []applicationVersionSourceReleaseBundle `json:"release_bundles,omitempty"`
-	Packages                     []applicationVersionSourcePackage     `json:"packages,omitempty"`
-	Aql                          string                                `json:"aql,omitempty"`
-	SkipDockerManifestResolution bool                                  `json:"skip_docker_manifest_resolution,omitempty"`
+	Packages                     []applicationVersionSourcePackage       `json:"packages,omitempty"`
+	Aql                          string                                  `json:"aql,omitempty"`
+	SkipDockerManifestResolution bool                                    `json:"skip_docker_manifest_resolution,omitempty"`
 }
 
 type applicationVersionListItem struct {
