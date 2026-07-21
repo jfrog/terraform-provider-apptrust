@@ -14,6 +14,13 @@ jobs:
     name: ${{ matrix.cli }}
     runs-on: ubuntu-latest
     continue-on-error: false
+    # Fork PRs get no secrets under pull_request, so the acceptance tests cannot run
+    # there. Skip them for forks (they show as skipped, not failed); fork changes are
+    # tested by pulling them into an internal branch, which runs here with secrets.
+    # workflow_dispatch has no pull_request context, so allow it through.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     environment: development
     strategy:
       fail-fast: true
