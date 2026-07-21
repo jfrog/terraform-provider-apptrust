@@ -67,15 +67,15 @@ type ApplicationsDataSourceModel struct {
 // singleApplicationResponse matches the API response for each application in GET /v1/applications.
 // Labels are returned as an array of key/value objects (not a map).
 type singleApplicationResponse struct {
-	ApplicationKey  string           `json:"application_key"`
-	ApplicationName string           `json:"application_name"`
-	ProjectKey      string           `json:"project_key"`
-	Description     string           `json:"description,omitempty"`
-	MaturityLevel   string           `json:"maturity_level,omitempty"`
-	Criticality     string           `json:"criticality,omitempty"`
-	Labels          []LabelAPIModel  `json:"labels,omitempty"`
-	UserOwners      []string         `json:"user_owners,omitempty"`
-	GroupOwners     []string         `json:"group_owners,omitempty"`
+	ApplicationKey  string          `json:"application_key"`
+	ApplicationName string          `json:"application_name"`
+	ProjectKey      string          `json:"project_key"`
+	Description     string          `json:"description,omitempty"`
+	MaturityLevel   string          `json:"maturity_level,omitempty"`
+	Criticality     string          `json:"criticality,omitempty"`
+	Labels          []LabelAPIModel `json:"labels,omitempty"`
+	UserOwners      []string        `json:"user_owners,omitempty"`
+	GroupOwners     []string        `json:"group_owners,omitempty"`
 }
 
 // paginatedApplicationsAPIResponse matches the paginated wrapper returned by GET /v1/applications.

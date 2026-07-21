@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -42,6 +44,10 @@ func PreCheck(t *testing.T) {
 	// Verify required environment variables are set
 	_ = GetArtifactoryUrl(t)
 	_ = GetAccessToken(t)
+	// Ensure the projects the tests reference exist (create-if-missing). AppTrust
+	// applications must belong to a pre-existing project, so provision them here
+	// instead of requiring out-of-band setup.
+	EnsureProjects(t)
 }
 
 func GetArtifactoryUrl(t *testing.T) string {
@@ -66,6 +72,74 @@ func getEnvWithDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+var (
+	projectsMu    sync.Mutex
+	projectsReady bool
+)
+
+// EnsureProjects creates the AppTrust test projects (AppTrustProjectKey1..4) if they
+// do not already exist. AppTrust applications must belong to a pre-existing project,
+// so acceptance tests provision them here rather than relying on out-of-band setup.
+// It is idempotent, deduplicates repeated keys, and only runs once per test binary
+// on success (a failure is not cached, so a later test retries).
+func EnsureProjects(t *testing.T) {
+	t.Helper()
+
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
+	if projectsReady {
+		return
+	}
+
+	rc := GetTestResty(t)
+	seen := make(map[string]bool)
+	for _, key := range []string{AppTrustProjectKey1, AppTrustProjectKey2, AppTrustProjectKey3, AppTrustProjectKey4} {
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		ensureProject(t, rc, key)
+	}
+
+	projectsReady = true
+}
+
+// ensureProject creates a single project via the Access API, treating an
+// already-existing project as success.
+func ensureProject(t *testing.T, rc *resty.Client, projectKey string) {
+	t.Helper()
+
+	body := map[string]interface{}{
+		"project_key":  projectKey,
+		"display_name": projectKey,
+		"description":  "Terraform provider AppTrust acceptance test project",
+		"admin_privileges": map[string]bool{
+			"manage_members":   true,
+			"manage_resources": true,
+			"index_resources":  true,
+		},
+	}
+
+	resp, err := rc.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
+		Post("access/api/v1/projects")
+	if err != nil {
+		t.Fatalf("EnsureProjects: error creating project %q: %v", projectKey, err)
+	}
+
+	switch {
+	case resp.IsSuccess():
+		return
+	case resp.StatusCode() == http.StatusConflict:
+		return // already exists
+	case strings.Contains(strings.ToLower(resp.String()), "already exists"):
+		return
+	default:
+		t.Fatalf("EnsureProjects: unexpected status %d creating project %q: %s", resp.StatusCode(), projectKey, resp.String())
+	}
 }
 
 func GetTestResty(t *testing.T) *resty.Client {
