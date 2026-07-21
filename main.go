@@ -43,3 +43,5 @@ func main() {
 		log.Fatal(err.Error())
 	}
 }
+
+// ci: fork-PR workflow smoke test — no-op
