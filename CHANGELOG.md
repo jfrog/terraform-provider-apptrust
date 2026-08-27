@@ -1,3 +1,9 @@
+## 1.0.3 (Jul 21, 2026)
+
+DOCUMENTATION:
+
+* CI: fork-PR smoke test (no functional change).
+
 ## 1.0.2 (Apr 16, 2026)
 
 BUG FIXES:
